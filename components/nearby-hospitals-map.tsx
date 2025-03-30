@@ -35,6 +35,7 @@ export function NearbyHospitalsMap() {
 
     let map: any = null
     let L: any = null
+    let userMarker: any = null
 
     const initMap = async () => {
       try {
@@ -62,7 +63,11 @@ export function NearbyHospitalsMap() {
 
         const mapElement = document.getElementById("map")
         if (mapElement) {
-          map = L.map("map").setView([30.0592, 31.2353], 12)
+          // Start with a default location (Cairo, Egypt)
+          const defaultLatitude = 30.0592
+          const defaultLongitude = 31.2353
+
+          map = L.map("map").setView([defaultLatitude, defaultLongitude], 12)
           mapRef.current = map
 
           L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -78,45 +83,111 @@ export function NearbyHospitalsMap() {
               })
           })
 
-          // Use a default location for static export
-          const defaultLatitude = 30.0592
-          const defaultLongitude = 31.2353
-
+          // Initially set with default location
           setUserLocation([defaultLatitude, defaultLongitude])
-
-          const userMarker = L.marker([defaultLatitude, defaultLongitude], { icon: userIcon })
+          userMarker = L.marker([defaultLatitude, defaultLongitude], { icon: userIcon })
             .addTo(map)
-            .bindPopup("Default location")
+            .bindPopup("Your location")
             .openPopup()
 
-          const hospitalsWithDistance = hospitals.map((hospital) => ({
-            hospital,
-            distance: calculateDistance(defaultLatitude, defaultLongitude, hospital.position[0], hospital.position[1]),
-          }))
+          // Try to get the user's actual location
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                const { latitude, longitude } = position.coords
 
-          const sorted = hospitalsWithDistance.sort((a, b) => a.distance - b.distance)
-          setSortedHospitals(sorted)
+                // Update user location
+                setUserLocation([latitude, longitude])
 
-          if (sorted.length > 0) {
-            const nearestHospital = sorted[0].hospital
-            const polyline = L.polyline([[defaultLatitude, defaultLongitude], nearestHospital.position], {
-              color: "red",
-            }).addTo(map)
+                // Update marker position
+                if (userMarker) {
+                  userMarker.setLatLng([latitude, longitude])
+                  userMarker.bindPopup("Your location").openPopup()
+                }
 
-            if (nearestHospitalMarkerRef.current) {
-              map.removeLayer(nearestHospitalMarkerRef.current)
-            }
+                // Recalculate distances
+                const hospitalsWithDistance = hospitals.map((hospital) => ({
+                  hospital,
+                  distance: calculateDistance(latitude, longitude, hospital.position[0], hospital.position[1]),
+                }))
 
-            nearestHospitalMarkerRef.current = L.marker(nearestHospital.position, { icon: hospitalIcon })
-              .addTo(map)
-              .bindPopup(`Nearest Hospital: ${nearestHospital.name}`)
-              .openPopup()
+                const sorted = hospitalsWithDistance.sort((a, b) => a.distance - b.distance)
+                setSortedHospitals(sorted)
 
-            const bounds = L.latLngBounds([defaultLatitude, defaultLongitude], nearestHospital.position)
+                if (sorted.length > 0) {
+                  const nearestHospital = sorted[0].hospital
 
-            map.fitBounds(bounds, {
-              padding: [50, 50],
-            })
+                  // Remove previous polyline if exists
+                  if (map._layers) {
+                    Object.keys(map._layers).forEach((layerId) => {
+                      if (map._layers[layerId]._path && map._layers[layerId].options.color === "red") {
+                        map.removeLayer(map._layers[layerId])
+                      }
+                    })
+                  }
+
+                  // Draw new polyline
+                  const polyline = L.polyline([[latitude, longitude], nearestHospital.position], {
+                    color: "red",
+                  }).addTo(map)
+
+                  if (nearestHospitalMarkerRef.current) {
+                    map.removeLayer(nearestHospitalMarkerRef.current)
+                  }
+
+                  nearestHospitalMarkerRef.current = L.marker(nearestHospital.position, { icon: hospitalIcon })
+                    .addTo(map)
+                    .bindPopup(`Nearest Hospital: ${nearestHospital.name}`)
+                    .openPopup()
+
+                  const bounds = L.latLngBounds([latitude, longitude], nearestHospital.position)
+
+                  map.fitBounds(bounds, {
+                    padding: [50, 50],
+                  })
+                }
+              },
+              (error) => {
+                console.error("Error getting location:", error)
+                // Keep using default location if geolocation fails
+                alert("Could not access your location. Using default location instead.")
+
+                // Calculate with default location
+                const hospitalsWithDistance = hospitals.map((hospital) => ({
+                  hospital,
+                  distance: calculateDistance(
+                    defaultLatitude,
+                    defaultLongitude,
+                    hospital.position[0],
+                    hospital.position[1],
+                  ),
+                }))
+
+                const sorted = hospitalsWithDistance.sort((a, b) => a.distance - b.distance)
+                setSortedHospitals(sorted)
+              },
+              {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0,
+              },
+            )
+          } else {
+            alert("Geolocation is not supported by your browser. Using default location.")
+
+            // Calculate with default location
+            const hospitalsWithDistance = hospitals.map((hospital) => ({
+              hospital,
+              distance: calculateDistance(
+                defaultLatitude,
+                defaultLongitude,
+                hospital.position[0],
+                hospital.position[1],
+              ),
+            }))
+
+            const sorted = hospitalsWithDistance.sort((a, b) => a.distance - b.distance)
+            setSortedHospitals(sorted)
           }
         }
       } catch (error) {
