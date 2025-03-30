@@ -24,7 +24,10 @@ const surgeries = [
 ]
 
 export function generateMedicalHistory(user: User) {
+  // Use a deterministic approach instead of relying on Math.random
   const userSeed = user.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
+
+  // Create a simple deterministic random function based on the seed
   const random = (max: number) => Math.floor(((Math.sin(userSeed * (max + 1)) + 1) * max) / 2)
 
   return {
