@@ -13,31 +13,33 @@ import { Progress } from "@/components/ui/progress"
 import { QRCodeSVG } from "qrcode.react"
 import { useUser } from "@/contexts/UserContext"
 import { generateMedicalHistory } from "@/utils/medicalHistoryGenerator"
+import Link from "next/link"
+import { Edit, Lock } from "lucide-react"
 
 const printStyles = `
 @media print {
-  body * {
-    visibility: hidden;
-  }
-  .print-section, .print-section * {
-    visibility: visible;
-  }
-  .print-section {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
-  .no-print {
-    display: none !important;
-  }
-  .print-break-after {
-    break-after: page;
-  }
-  @page {
-    size: A4;
-    margin: 2cm;
-  }
+body * {
+  visibility: hidden;
+}
+.print-section, .print-section * {
+  visibility: visible;
+}
+.print-section {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+}
+.no-print {
+  display: none !important;
+}
+.print-break-after {
+  break-after: page;
+}
+@page {
+  size: A4;
+  margin: 2cm;
+}
 }
 `
 
@@ -97,8 +99,13 @@ export default function ProfileClient() {
       </Tabs>
       <div className={activeTab === "personal" ? "" : "hidden"}>
         <Card className="bg-white shadow-md mt-4 print-section">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Personal Information</CardTitle>
+            <Button variant="outline" size="sm" asChild className="no-print">
+              <Link href="/profile/edit">
+                <Edit className="mr-2 h-4 w-4" /> Edit Profile
+              </Link>
+            </Button>
           </CardHeader>
           <CardContent>
             {user ? (
@@ -181,7 +188,7 @@ export default function ProfileClient() {
             </div>
 
             <div className="mt-6 flex justify-center">
-              <QRCodeSVG value="https://example.com/profile/12345678901234" />
+              <QRCodeSVG value={`https://example.com/profile/${user?.id || "12345"}`} />
             </div>
           </CardContent>
         </Card>
@@ -192,31 +199,41 @@ export default function ProfileClient() {
             <CardTitle>Account Settings</CardTitle>
           </CardHeader>
           <CardContent>
-            <form className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center p-4 border rounded-md">
                 <div>
-                  <Label htmlFor="updateEmail">Update Email</Label>
-                  <Input id="updateEmail" type="email" placeholder="New email address" />
+                  <h3 className="font-medium">Edit Profile Information</h3>
+                  <p className="text-sm text-muted-foreground">Update your personal details and contact information</p>
                 </div>
-                <div>
-                  <Label htmlFor="updatePhone">Update Phone Number</Label>
-                  <Input id="updatePhone" type="tel" placeholder="New phone number" />
-                </div>
-                <div>
-                  <Label htmlFor="updatePassword">Change Password</Label>
-                  <Input id="updatePassword" type="password" placeholder="New password" />
-                </div>
-                <div>
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <Input id="confirmPassword" type="password" placeholder="Confirm new password" />
-                </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="updateAddress">Update Address</Label>
-                  <Textarea id="updateAddress" placeholder="New address" />
-                </div>
+                <Button asChild>
+                  <Link href="/profile/edit">
+                    <Edit className="mr-2 h-4 w-4" /> Edit Profile
+                  </Link>
+                </Button>
               </div>
-              <Button type="submit">Save Changes</Button>
-            </form>
+
+              <div className="flex justify-between items-center p-4 border rounded-md">
+                <div>
+                  <h3 className="font-medium">Change Password</h3>
+                  <p className="text-sm text-muted-foreground">Update your password to keep your account secure</p>
+                </div>
+                <Button asChild>
+                  <Link href="/profile/change-password">
+                    <Lock className="mr-2 h-4 w-4" /> Change Password
+                  </Link>
+                </Button>
+              </div>
+
+              <div className="flex justify-between items-center p-4 border rounded-md">
+                <div>
+                  <h3 className="font-medium">Manage Medical Records</h3>
+                  <p className="text-sm text-muted-foreground">View, upload, and manage your medical records</p>
+                </div>
+                <Button asChild>
+                  <Link href="/medical-records">Manage Records</Link>
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

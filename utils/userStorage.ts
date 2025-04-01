@@ -54,5 +54,54 @@ export const userStorage = {
   logout: () => {
     userStorage.clearCurrentUser()
   },
+  updateUser: (id: string, updatedData: Partial<User>): boolean => {
+    const users = userStorage.getUsers()
+    const userIndex = users.findIndex((user) => user.id === id)
+
+    if (userIndex === -1) return false
+
+    // Don't allow changing the ID
+    const { id: _, ...dataToUpdate } = updatedData
+
+    // Update user data
+    users[userIndex] = { ...users[userIndex], ...dataToUpdate }
+
+    // Save updated users array
+    localStorage.setItem("users", JSON.stringify(users))
+
+    // If this is the current user, update current user as well
+    const currentUser = userStorage.getCurrentUser()
+    if (currentUser && currentUser.id === id) {
+      const { password, ...userWithoutPassword } = users[userIndex]
+      userStorage.setCurrentUser(userWithoutPassword)
+    }
+
+    return true
+  },
+  deleteUser: (id: string): boolean => {
+    const users = userStorage.getUsers()
+    const filteredUsers = users.filter((user) => user.id !== id)
+
+    if (filteredUsers.length === users.length) return false
+
+    localStorage.setItem("users", JSON.stringify(filteredUsers))
+
+    // If this is the current user, log them out
+    const currentUser = userStorage.getCurrentUser()
+    if (currentUser && currentUser.id === id) {
+      userStorage.clearCurrentUser()
+    }
+
+    return true
+  },
+  validatePassword: (id: string, password: string): boolean => {
+    const user = userStorage.getUserById(id)
+    return user ? user.password === password : false
+  },
+  changePassword: (id: string, currentPassword: string, newPassword: string): boolean => {
+    if (!userStorage.validatePassword(id, currentPassword)) return false
+
+    return userStorage.updateUser(id, { password: newPassword })
+  },
 }
 

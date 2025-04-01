@@ -5,19 +5,33 @@ import { useRouter } from "next/navigation"
 import { Breadcrumb } from "@/components/breadcrumb"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { getMedicalRecordById } from "@/utils/medicalRecordStorage"
+import { getMedicalRecordById, deleteMedicalRecord } from "@/utils/medicalRecordStorage"
 import { useUser } from "@/contexts/UserContext"
-import { Download, ArrowLeft } from "lucide-react"
+import { Download, ArrowLeft, Edit, Trash2 } from "lucide-react"
 import { format } from "date-fns"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import Link from "next/link"
 
 function MedicalRecordClientComponent({ id }: { id: string }) {
   const router = useRouter()
   const { user } = useUser()
   const [record, setRecord] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
-    if (!user) {
+    setIsClient(true)
+    if (!user && typeof window !== "undefined") {
       router.push("/login")
       return
     }
@@ -25,7 +39,7 @@ function MedicalRecordClientComponent({ id }: { id: string }) {
     const fetchRecord = () => {
       const foundRecord = getMedicalRecordById(id as string)
 
-      if (!foundRecord || foundRecord.patientId !== user.id) {
+      if (!foundRecord || foundRecord.patientId !== user?.id) {
         router.push("/medical-records")
         return
       }
@@ -34,7 +48,9 @@ function MedicalRecordClientComponent({ id }: { id: string }) {
       setIsLoading(false)
     }
 
-    fetchRecord()
+    if (user) {
+      fetchRecord()
+    }
   }, [id, user, router])
 
   const handleDownload = () => {
@@ -46,6 +62,19 @@ function MedicalRecordClientComponent({ id }: { id: string }) {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  const handleDelete = () => {
+    if (!record || !user) return
+
+    const success = deleteMedicalRecord(id, user.id)
+    if (success) {
+      router.push("/medical-records")
+    }
+  }
+
+  if (!isClient) {
+    return <div>Loading...</div>
   }
 
   if (isLoading) {
@@ -68,9 +97,35 @@ function MedicalRecordClientComponent({ id }: { id: string }) {
 
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{record.type}</h1>
-        <Button variant="outline" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Records
-        </Button>
+        <div className="flex space-x-2">
+          <Button variant="outline" onClick={() => router.back()}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Records
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href={`/medical-records/edit/${id}`}>
+              <Edit className="mr-2 h-4 w-4" /> Edit
+            </Link>
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete your medical record.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -116,6 +171,12 @@ function MedicalRecordClientComponent({ id }: { id: string }) {
                 <dt className="font-medium text-muted-foreground">Upload Date</dt>
                 <dd>{format(new Date(record.uploadDate), "MMMM d, yyyy")}</dd>
               </div>
+              {record.lastModified && (
+                <div>
+                  <dt className="font-medium text-muted-foreground">Last Modified</dt>
+                  <dd>{format(new Date(record.lastModified), "MMMM d, yyyy")}</dd>
+                </div>
+              )}
             </dl>
 
             <div className="mt-6 flex space-x-2">

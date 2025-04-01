@@ -22,17 +22,21 @@ export default function MedicalRecordsPage() {
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [records, setRecords] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
-    if (!user) {
+    setIsClient(true)
+    if (!user && typeof window !== "undefined") {
       router.push("/login")
       return
     }
 
     // Load records from storage
-    const patientRecords = getPatientMedicalRecords(user.id)
-    setRecords(patientRecords)
-    setIsLoading(false)
+    if (user) {
+      const patientRecords = getPatientMedicalRecords(user.id)
+      setRecords(patientRecords)
+      setIsLoading(false)
+    }
   }, [user, router])
 
   const getFileIcon = (fileType: string) => {
@@ -46,9 +50,15 @@ export default function MedicalRecordsPage() {
   }
 
   const handleDelete = (id: string) => {
+    if (!user) return
+
     if (window.confirm("Are you sure you want to delete this record? This action cannot be undone.")) {
-      deleteMedicalRecord(id)
-      setRecords(records.filter((record) => record.id !== id))
+      const success = deleteMedicalRecord(id, user.id)
+      if (success) {
+        setRecords(records.filter((record) => record.id !== id))
+      } else {
+        alert("Failed to delete record. You may only delete your own records.")
+      }
     }
   }
 
@@ -80,6 +90,10 @@ export default function MedicalRecordsPage() {
 
   // Get unique categories for filter
   const categories = [...new Set(records.map((record) => record.category))]
+
+  if (!isClient) {
+    return <div>Loading...</div>
+  }
 
   if (isLoading) {
     return <div>Loading medical records...</div>
